@@ -71,7 +71,9 @@ router.post(
       const post = await Post.create({
         title,
         content,
+
         category,
+        
         image: imageUrl,
       });
 
