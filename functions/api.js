@@ -67,7 +67,7 @@ router.post(
     try {
       const { title, content, category } = req.body;
       const imageFilename = req.file.filename;
-      const imageUrl = `http://localhost:8001/uploads/${imageFilename}`;
+      const imageUrl = `https://${req.headers.host}/uploads/${imageFilename}`;
       const post = await Post.create({
         title,
         content,
