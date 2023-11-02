@@ -2,22 +2,34 @@ const express = require("express");
 const User = require("../Schema/User");
 const Post = require("../Schema/Post");
 // const JWT_CRET = "habibisagoodb#oy";
-const multer = require("multer");
 const router = express.Router();
 const JWT_SECRET = "habibisagoodb#oy";
 const jwt = require("jsonwebtoken");
 const { body, validationResult } = require("express-validator");
 
+const multer = require("multer");
+const path = require("path");
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, "uploads"));  // Define the upload directory
   },
-  filename: (req, file, cb) => {
-    cb(null, file.originalname);
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));  // Rename the uploaded file
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ storage: storage });
+
+router.post("/uploadimage", upload.single("image"), (req, res) => {
+  if (req.file) {
+    const imagePath = req.file.filename;
+    res.json({ imagePath });
+  } else {
+    res.status(400).json({ error: "No image uploaded" });
+  }
+});
+
 // Route 1: create user using: api/auth/createuser
 router.post(
   "/createuser",
@@ -51,39 +63,57 @@ router.post(
 );
 
 // post api start
-router.post(
-  "/createpost",
-  [
-    body("title", "Enter title"),
-    body("title", "Enter category"),
-    body("content", "Enter your content here"),
-  ],
-  upload.single("image"),
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    try {
-      const { title, content, category } = req.body;
-      const imageFilename = req.file.filename;
-      const imageUrl = `https://${req.headers.host}/uploads/${imageFilename}`;
-      const post = await Post.create({
-        title,
-        content,
-
-        category,
-        
-        image: imageUrl,
-      });
-
-      res.json({ post });
-    } catch (error) {
-      res.status(500).send("Internal error occured");
-      console.log(error);
-    }
+router.post("/createpost", upload.single("image"), async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
   }
-);
+
+  try {
+    const { title, content, category } = req.body;
+    const image = req.file ? req.file.filename : "";  // Get the image path if uploaded
+
+    const post = await Post.create({
+      title,
+      content,
+      category,
+      image,
+    });
+
+    res.json({ post });
+  } catch (error) {
+    res.status(500).send("Internal error occurred");
+    console.log(error);
+  }
+});
+
+// router.post(
+//   "/createpost",
+//   [
+//     body("title", "Enter title"),
+//     body("title", "Enter category"),
+//     body("content", "Enter your content here"),
+//   ],
+//   async (req, res) => {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({ errors: errors.array() });
+//     }
+//     try {
+//       const { title, content, category } = req.body;
+//       const post = await Post.create({
+//         title,
+//         content,
+//         category,
+//       });
+
+//       res.json({ post });
+//     } catch (error) {
+//       res.status(500).send("Internal error occured");
+//       console.log(error);
+//     }
+//   }
+// );
 // post api end
 
 // get post start
