@@ -10,10 +10,12 @@ const connectToMongo = async () => {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
+
     console.log("Successfuly connected with mongodb");
   } catch (error) {
     console.log(error);
     process.exit();
+    
   }
 };
 
