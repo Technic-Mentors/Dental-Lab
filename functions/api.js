@@ -9,15 +9,17 @@ const jwt = require("jsonwebtoken");
 const { body, validationResult } = require("express-validator");
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
+  destination: function (req, file, cb) {
+    cb(null, "uploads/"); // Define the destination folder where uploaded files will be stored
   },
-  filename: (req, file, cb) => {
-    cb(null, file.originalname);
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname); // Define the filename for the uploaded file
   },
 });
 
 const upload = multer({ storage });
+
 // Route 1: create user using: api/auth/createuser
 router.post(
   "/createuser",
@@ -51,37 +53,25 @@ router.post(
 );
 
 // post api start
-router.post(
-  "/createpost",
-  [
-    body("title", "Enter title"),
-    body("title", "Enter category"),
-    body("content", "Enter your content here"),
-  ],
-  // upload.single("image"),
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    try {
-      const { title, content, category } = req.body;
-      // const imageFilename = req.file.filename;
-      // const imageUrl = `http://localhost:8001/uploads/${imageFilename}`;
-      const post = await Post.create({
-        title,
-        content,
-        category,
-        // image: imageUrl,
-      });
+router.post("/createpost", upload.single("image"), async (req, res) => {
+  // Extract post data and uploaded image file
+  const { title, content, category } = req.body;
+  const image = req.file ? req.file.filename : null; // Get the filename of the uploaded image
 
-      res.json({ post });
-    } catch (error) {
-      res.status(500).send("Internal error occured");
-      console.log(error);
-    }
+  try {
+    const post = await Post.create({
+      title,
+      content,
+      category,
+      image, // Save the image URL in the database
+    });
+
+    res.json({ post });
+  } catch (error) {
+    res.status(500).send("Internal error occurred");
+    console.log(error);
   }
-);
+});
 // post api end
 
 // get post start
