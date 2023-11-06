@@ -2,7 +2,6 @@ const express = require("express");
 const User = require("../Schema/User");
 const Post = require("../Schema/Post");
 const fileUpload = require('express-fileupload');
-const express = require('express');
 const app = express();
 
 app.use(fileUpload());
