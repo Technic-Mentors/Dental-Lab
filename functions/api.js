@@ -7,13 +7,11 @@ const JWT_SECRET = "habibisagoodb#oy";
 const jwt = require("jsonwebtoken");
 const { body, validationResult } = require("express-validator");
 
-const multer = require("multer");
 const { put } = require('@vercel/blob');
 
-const upload = multer({ storage });
 
 // post api start
-router.post('/createpost', upload.single('image'), async (req, res) => {
+router.post('/createpost', async (req, res) => {
   // Extract post data and uploaded image file
   const { title, content, category } = req.body;
   const imageFile = req.file;
