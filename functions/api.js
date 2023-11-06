@@ -15,7 +15,7 @@ router.post('/createpost', async (req, res) => {
   // Extract post data and uploaded image file
   const { title, content, category } = req.body;
   const imageFile = req.file;
-
+  console.log('req.file:', req.file);
   try {
     // Check if an image was uploaded
     if (!imageFile) {
