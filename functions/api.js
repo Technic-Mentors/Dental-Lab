@@ -5,6 +5,7 @@ const Post = require("../Schema/Post");
 const multer = require("multer");
 const router = express.Router();
 const JWT_SECRET = "habibisagoodb#oy";
+const { put } = require('@vercel/blob');
 const jwt = require("jsonwebtoken");
 const { body, validationResult } = require("express-validator");
 
@@ -19,6 +20,43 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+
+// post api start
+router.post('/createpost', upload.single('image'), async (req, res) => {
+  // Extract post data and uploaded image file
+  const { title, content, category } = req.body;
+  const imageFile = req.file;
+
+  try {
+    // Check if an image was uploaded
+    if (!imageFile) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    // Upload the image to Vercel Blob
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const imageKey = `images/${uniqueSuffix}-${imageFile.originalname}`;
+    await put(imageKey, imageFile.buffer, { contentType: imageFile.mimetype });
+
+    // Get the URL of the uploaded image
+    const { url } = await put(imageKey, imageFile.buffer, { access: 'public' });
+
+    // Save the Vercel Blob URL in the database
+    const post = await Post.create({
+      title,
+      content,
+      category,
+      image: url, // Use the actual URL obtained from Vercel Blob
+    });
+
+    res.json({ post });
+  } catch (error) {
+    res.status(500).send('Internal error occurred');
+    console.log(error);
+  }
+});
+
+// post api end
 
 // Route 1: create user using: api/auth/createuser
 router.post(
@@ -51,28 +89,6 @@ router.post(
     }
   }
 );
-
-// post api start
-router.post("/createpost", upload.single("image"), async (req, res) => {
-  // Extract post data and uploaded image file
-  const { title, content, category } = req.body;
-  const image = req.file ? req.file.filename : null; // Get the filename of the uploaded image
-
-  try {
-    const post = await Post.create({
-      title,
-      content,
-      category,
-      image, // Save the image URL in the database
-    });
-
-    res.json({ post });
-  } catch (error) {
-    res.status(500).send("Internal error occurred");
-    console.log(error);
-  }
-});
-// post api end
 
 // get post start
 router.get("/getallposts", async (req, res) => {
