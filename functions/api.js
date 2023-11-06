@@ -2,25 +2,13 @@ const express = require("express");
 const User = require("../Schema/User");
 const Post = require("../Schema/Post");
 // const JWT_CRET = "habibisagoodb#oy";
-const multer = require("multer");
 const router = express.Router();
 const JWT_SECRET = "habibisagoodb#oy";
-const { put } = require('@vercel/blob');
 const jwt = require("jsonwebtoken");
 const { body, validationResult } = require("express-validator");
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadPath = "uploads/";
-    console.log("Destination:", uploadPath); // Log the destination folder
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    console.log("Original filename:", file.originalname); // Log the original filename
-    cb(null, uniqueSuffix + "-" + file.originalname); // Define the filename for the uploaded file
-  },
-});
+const multer = require("multer");
+const { put } = require('@vercel/blob');
 
 const upload = multer({ storage });
 
@@ -44,14 +32,10 @@ router.post('/createpost', upload.single('image'), async (req, res) => {
 
     // Use the @vercel/blob package to upload the image
     console.log('Uploading image to Vercel Blob...'); // Log the start of the upload process
-    await put(imageKey, imageFile.buffer, { contentType: imageFile.mimetype });
+    const { url } = await put(imageKey, imageFile.buffer, { access: 'public' });
     console.log('Image uploaded to Vercel Blob'); // Log when the image is successfully uploaded
 
-    // Get the URL of the uploaded image
-    const { url } = await put(imageKey, imageFile.buffer, { access: 'public' });
-    console.log('Image URL:', url); // Log the URL of the uploaded image
-
-    // Save the Vercel Blob URL in the database
+    // Save the Vercel Blob URL in the database or use it in your posts
     const post = await Post.create({
       title,
       content,
