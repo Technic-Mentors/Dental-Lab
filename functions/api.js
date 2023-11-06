@@ -1,6 +1,11 @@
 const express = require("express");
 const User = require("../Schema/User");
 const Post = require("../Schema/Post");
+const fileUpload = require('express-fileupload');
+const express = require('express');
+const app = express();
+
+app.use(fileUpload());
 // const JWT_CRET = "habibisagoodb#oy";
 const router = express.Router();
 const JWT_SECRET = "habibisagoodb#oy";
@@ -14,15 +19,13 @@ const { put } = require('@vercel/blob');
 router.post('/createpost', async (req, res) => {
   // Extract post data and uploaded image file
   const { title, content, category } = req.body;
-  const imageFile = req.file;
-  console.log('req.file:', req.file);
   try {
     // Check if an image was uploaded
-    if (!imageFile) {
-      console.log('No image file provided'); // Log if no image file is provided
+    if (!req.files || Object.keys(req.files).length === 0) {
       return res.status(400).json({ error: 'No image file provided' });
     }
-
+console.log(req.files.image)
+    const imageFile = req.files.image; 
     // Upload the image to Vercel Blob
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const imageKey = `images/${uniqueSuffix}-${imageFile.originalname}`;
