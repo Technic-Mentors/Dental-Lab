@@ -11,10 +11,13 @@ const { body, validationResult } = require("express-validator");
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads/"); // Define the destination folder where uploaded files will be stored
+    const uploadPath = "uploads/";
+    console.log("Destination:", uploadPath); // Log the destination folder
+    cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    console.log("Original filename:", file.originalname); // Log the original filename
     cb(null, uniqueSuffix + "-" + file.originalname); // Define the filename for the uploaded file
   },
 });
@@ -30,16 +33,23 @@ router.post('/createpost', upload.single('image'), async (req, res) => {
   try {
     // Check if an image was uploaded
     if (!imageFile) {
+      console.log('No image file provided'); // Log if no image file is provided
       return res.status(400).json({ error: 'No image file provided' });
     }
 
     // Upload the image to Vercel Blob
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const imageKey = `images/${uniqueSuffix}-${imageFile.originalname}`;
+    console.log('Image key:', imageKey); // Log the image key
+
+    // Use the @vercel/blob package to upload the image
+    console.log('Uploading image to Vercel Blob...'); // Log the start of the upload process
     await put(imageKey, imageFile.buffer, { contentType: imageFile.mimetype });
+    console.log('Image uploaded to Vercel Blob'); // Log when the image is successfully uploaded
 
     // Get the URL of the uploaded image
     const { url } = await put(imageKey, imageFile.buffer, { access: 'public' });
+    console.log('Image URL:', url); // Log the URL of the uploaded image
 
     // Save the Vercel Blob URL in the database
     const post = await Post.create({
@@ -49,13 +59,14 @@ router.post('/createpost', upload.single('image'), async (req, res) => {
       image: url, // Use the actual URL obtained from Vercel Blob
     });
 
+    console.log('Post saved in the database'); // Log when the post is saved in the database
+
     res.json({ post });
   } catch (error) {
+    console.error('Error occurred:', error); // Log any errors that occur
     res.status(500).send('Internal error occurred');
-    console.log(error);
   }
 });
-
 // post api end
 
 // Route 1: create user using: api/auth/createuser
