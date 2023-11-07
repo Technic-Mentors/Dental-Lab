@@ -7,35 +7,30 @@ const JWT_SECRET = "habibisagoodb#oy";
 const jwt = require("jsonwebtoken");
 const { body, validationResult } = require("express-validator");
 
-const { put } = require('@vercel/blob');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 
-
-// post api start
-router.post('/createpost', async (req, res) => {
+router.post('/createpost', upload.single('image'), async (req, res) => {
   const { title, content, category } = req.body;
-  console.log('req:', req);
-
-
 
   try {
-    if (!req.files || !req.files.image) {
+    if (!req.file) {
       console.log('No image file provided');
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    const imageFile = req.files.image;
+    const imageFile = req.file;
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const imageKey = `images/${uniqueSuffix}-${imageFile.name}`;
+    const imageKey = `images/${uniqueSuffix}-${imageFile.originalname}`;
 
-    console.log('Uploading image to Vercel Blob...');
-    const { url } = await put(imageKey, imageFile.data, { access: 'public' });
-    console.log('Image uploaded to Vercel Blob');
+    console.log('Uploading image...');
+    // You can implement your file storage logic here (e.g., saving to a cloud storage service).
 
     const post = await Post.create({
       title,
       content,
       category,
-      image: url,
+      image: imageKey, // Save the image key or URL, not the file itself
     });
 
     console.log('Post saved in the database');
@@ -46,6 +41,8 @@ router.post('/createpost', async (req, res) => {
     res.status(500).send('Internal error occurred');
   }
 });
+
+
 // post api end
 
 // Route 1: create user using: api/auth/createuser
