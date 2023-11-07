@@ -13,6 +13,8 @@ const { put } = require('@vercel/blob');
 // post api start
 router.post('/createpost', async (req, res) => {
   const { title, content, category } = req.body;
+  console.log('req.files:', req.files);
+
 
   try {
     if (!req.files || !req.files.image) {
