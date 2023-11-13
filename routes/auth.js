@@ -2,6 +2,7 @@ const express = require("express");
 // const serverless = require('serverless-http');
 const User = require("../Schema/User")
 const Post = require("../Schema/Post")
+const Category = require("../Schema/Category")
 const JWT_SECRET = "habibisagoodb#oy";
 const multer = require('multer')
 // const app = express();
@@ -137,7 +138,7 @@ router.post(
       const { email, password } = req.body;
 
       // Check if the email and password match specific values
-      if (email === 'capobrainofficial@gmail.com' && password === 'Capobrain2345') {
+      if (email === 'technicmentors@gmail.com' && password === 'TechnicMentors2345') {
         // Authentication successful
         const authtoken = jwt.sign({ email }, JWT_SECRET);
         return res.json({ success: true, authtoken });
@@ -152,15 +153,123 @@ router.post(
   }
 );
 
-// 
-router.get("/getusers/:id", async (req, res) => {
+router.get("/getposts/:id", async (req, res) => {
   try {
-    const allusers = await User.findById(req.params.id);
-    res.json(allusers);
+    const posts = await Post.findById(req.params.id);
+    res.json(posts);
   } catch (error) {
     console.error(error.message);
     res.status(500).send("internal server Error");
   }
 });
 
+router.delete("/delposts/:id", async (req, res) => {
+  try {
+    const posts = await Post.findByIdAndDelete(req.params.id)
+    if(!posts){
+      return res.status(404).json({ message: "Post not found" });
+    }
+    res.json({ message: "Post deleted successfully" });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send("internal server Error");
+  }
+});
+
+router.put("/editposts/:id", async(req,res)=>{
+  try {
+    const {title,category,content} = req.body
+  const newPosts = {}
+  if(title){
+    newPosts.title = title
+  }
+  if(category){
+    newPosts.category = category
+  }
+  if(content){
+    newPosts.content = content
+  }
+  let posts = Post.findById(req.params.id)
+  if(!posts){
+    res.status(404).send({message: "Posts not find"})
+  }
+  posts = await Post.findByIdAndUpdate(req.params.id, {$set: newPosts}, {new:true})
+  res.json(posts)
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send("internal server Error");
+  }
+})
+
+// Category
+router.post("/category",[
+  body("category", "Enter category")
+], async (req,res)=>{
+  const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+  const {category} = req.body;
+  const Allategory = await Category.create({
+    category
+  })
+  res.json(Allategory)
+})
+
+router.get("/getcategory", async(req,res)=>{
+  try {
+    const Getcategory = await Category.find({})
+    res.json(Getcategory)
+  } catch (error) {
+    console.log(error.message)
+    res.status(500).send("internal Server Error")
+  }
+})
+
+router.get("/getcategory/:id", async(req,res)=>{
+  try {
+    const Getcategory = await Category.findById(req.params.id)
+    if(!Getcategory){
+      return res.status(404).json({message:"Dont find Category"})
+    }
+    res.json(Getcategory)
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send("internal server Error");
+  }
+})
+
+router.delete("/delcategory/:id", async(req,res)=>{
+  try {
+    const Getcategory = await Category.findByIdAndDelete(req.params.id)
+    if(!Getcategory){
+      return res.status(404).json({message:"Dont find Category"})
+    }
+    res.json({ message: "Category deleted successfully" });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send("internal server Error");
+  }
+})
+
+router.put("/editcategory/:id", async(req,res)=>{
+  try {
+    const {category} = req.body
+    const newCat = {}
+    if(category){
+      newCat.category = category
+    }
+
+    let cat = await Category.findById(req.params.id)
+    if(!cat){
+      res.status(404).json("Category not found")
+    }
+
+    cat = await Category.findByIdAndUpdate(req.params.id, {$set: newCat}, {new: true});
+    res.json(cat)
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send("internal server Error");
+  }
+})
 module.exports = router
