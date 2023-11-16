@@ -15,6 +15,15 @@ const postSchema = new Schema({
     type: String,
     required: true,
   },
+  slug: {
+    type: String,
+    unique: true,
+    required: true,
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "admin"
+  },
   date: {
     type: Date,
     default: Date.now,

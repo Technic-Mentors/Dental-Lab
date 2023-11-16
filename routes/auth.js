@@ -1,10 +1,13 @@
 const express = require("express");
 // const serverless = require('serverless-http');
-const User = require("../Schema/User")
-const Post = require("../Schema/Post")
-const Category = require("../Schema/Category")
+const User = require("../Schema/User");
+const Admin = require("../Schema/Admin");
+const Post = require("../Schema/Post");
+const Category = require("../Schema/Category");
 const JWT_SECRET = "habibisagoodb#oy";
-const multer = require('multer')
+const multer = require("multer");
+const bcrypt = require("bcrypt");
+
 // const app = express();
 const router = express.Router();
 const jwt = require("jsonwebtoken");
@@ -20,6 +23,11 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+
+let hardcodedUser = {
+  email: "technicmentors@gmail.com",
+  password: "$2a$10$UQoTsfaaoUYdx0Kzl51.QOU9E5dZsU5dE4yCk53UCfbCHTwl3OAGu",
+};
 // Route 1: create user using: api/auth/createuser
 router.post(
   "/createuser",
@@ -30,7 +38,7 @@ router.post(
     body("phoneno", "Phone no must be at least 11 char long").isLength({
       min: 11,
     }),
-    body("message", "Enter your message here")
+    body("message", "Enter your message here"),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -38,20 +46,20 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
     try {
-      const {name,email,schoolname,phoneno,message} = req.body
-      
-    const user = await User.create({
+      const { name, email, schoolname, phoneno, message } = req.body;
+
+      const user = await User.create({
         name,
         email,
         schoolname,
         phoneno,
-        message
+        message,
       });
 
-      res.json({user});
+      res.json({ user });
     } catch (error) {
       res.status(500).send("Internal error occured");
-      console.log(error)
+      console.log(error);
     }
   }
 );
@@ -62,7 +70,7 @@ router.post(
   [
     body("title", "Enter title"),
     body("title", "Enter category"),
-    body("content", "Enter your content here")
+    body("content", "Enter your content here"),
   ],
   upload.single("image"),
   async (req, res) => {
@@ -71,52 +79,63 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
     try {
-      const {title,content,category} = req.body
-    const post = await Post.create({
+      const { title, content, category, slug } = req.body;
+
+      const post = await Post.create({
         title,
         content,
         category,
+        slug,
       });
 
-
-      res.json({post});
+      res.json({ post });
     } catch (error) {
       res.status(500).send("Internal error occured");
-      console.log(error)
+      console.log(error);
     }
   }
 );
 // post api end
-
-// get post start
-router.get("/getallposts", async(req,res) =>{
+router.get("/postsCount", async(req,res)=>{
   try {
-    const allposts = await Post.find({})
-    res.json(allposts)
+    const postCount = await Post.countDocuments({})
+    res.json(postCount)
   } catch (error) {
     console.log(error.message);
-    res.status(500).send("internal server error")
+    res.status(500).send("internal server error");
   }
 })
+// get post start
+router.get("/getallposts", async (req, res) => {
+  try {
+    const allposts = await Post.find({});
+    res.json(allposts);
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).send("internal server error");
+  }
+});
 // get post end
 
 // get post id start
-router.get("/getpost/:id", async(req,res) =>{
+router.get("/getpost/:slug", async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id)
-  res.json(post)
+    const post = await Post.findOne({ slug: req.params.slug });
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    res.json(post);
   } catch (error) {
     console.error(error.message);
-    res.status(500).send("internal server Error")
-    
+    res.status(500).send("internal server Error");
   }
-})
+});
 // get post id end
 
-// 
+//
 router.get("/getallusers", async (req, res) => {
   try {
-    const allusers = await User.find({ });
+    const allusers = await User.find({});
     res.json(allusers);
   } catch (error) {
     console.error(error.message);
@@ -125,34 +144,98 @@ router.get("/getallusers", async (req, res) => {
 });
 
 // Route 1: create user using: api/auth/createadmin
-router.post(
-  '/createadmin',
-  [
-    body('email', 'Enter a valid email').isEmail(),
-    body('password', 'Password must be at least 5 characters long').isLength({
-      min: 5,
-    }),
-  ],
-  async (req, res) => {
-    try {
-      const { email, password } = req.body;
+router.post("/createadmin", async (req, res) => {
+  try {
+    // Check if the user already exists
+    const existingUser = await Admin.findOne({ email: hardcodedUser.email });
 
-      // Check if the email and password match specific values
-      if (email === 'technicmentors@gmail.com' && password === 'TechnicMentors2345') {
-        // Authentication successful
-        const authtoken = jwt.sign({ email }, JWT_SECRET);
-        return res.json({ success: true, authtoken });
-      } else {
-        // Authentication failed
-        return res.status(400).json({ success: false, error: 'Invalid credentials' });
-      }
-    } catch (error) {
-      console.error(error.message);
-      res.status(500).send('Internal error occurred');
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ success: false, error: "User already exists" });
     }
-  }
-);
 
+    // Create a new user
+    const newUser = await Admin.create(hardcodedUser);
+
+    res.json({ success: true, user: newUser });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send("Internal server error");
+  }
+});
+
+router.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Check if the entered credentials match a user in the database
+    const user = await Admin.findOne({ email });
+
+    if (!user) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Invalid credentials" });
+    }
+
+    // Compare the entered password with the hashed password in the database
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordMatch) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Invalid credentials" });
+    }
+
+    // Generate a token
+    const token = jwt.sign(
+      { user: { email: user.email } },
+      "TechnicSecretKey",
+      {
+        expiresIn: "1h", // You can adjust the expiration time
+      }
+    );
+
+    res.json({ success: true, token });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send("Internal server error");
+  }
+});
+
+// Change Password
+router.put("/changepassword", async (req, res) => {
+  const { email, oldPassword, newPassword } = req.body;
+
+  try {
+    // Check if the entered credentials match the user in the database
+    const user = await Admin.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({ success: false, error: "User not found" });
+    }
+
+    const isPasswordMatch = await bcrypt.compare(oldPassword, user.password);
+
+    if (!isPasswordMatch) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Old password incorrect" });
+    }
+
+    // Hash the new password and update it in the database
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedNewPassword;
+    await user.save();
+
+    res.json({ success: true, message: "Password changed successfully" });
+  } catch (error) {
+    console.error("Error changing password:", error);
+    res.status(500).send("Internal server error");
+  }
+});
+
+// Change Password
 router.get("/getposts/:id", async (req, res) => {
   try {
     const posts = await Post.findById(req.params.id);
@@ -165,8 +248,8 @@ router.get("/getposts/:id", async (req, res) => {
 
 router.delete("/delposts/:id", async (req, res) => {
   try {
-    const posts = await Post.findByIdAndDelete(req.params.id)
-    if(!posts){
+    const posts = await Post.findByIdAndDelete(req.params.id);
+    if (!posts) {
       return res.status(404).json({ message: "Post not found" });
     }
     res.json({ message: "Post deleted successfully" });
@@ -176,100 +259,124 @@ router.delete("/delposts/:id", async (req, res) => {
   }
 });
 
-router.put("/editposts/:id", async(req,res)=>{
+router.put("/editposts/:id", async (req, res) => {
   try {
-    const {title,category,content} = req.body
-  const newPosts = {}
-  if(title){
-    newPosts.title = title
-  }
-  if(category){
-    newPosts.category = category
-  }
-  if(content){
-    newPosts.content = content
-  }
-  let posts = Post.findById(req.params.id)
-  if(!posts){
-    res.status(404).send({message: "Posts not find"})
-  }
-  posts = await Post.findByIdAndUpdate(req.params.id, {$set: newPosts}, {new:true})
-  res.json(posts)
+    const { title, category, content, slug } = req.body;
+    const newPosts = {};
+    if (title) {
+      newPosts.title = title;
+    }
+    if (category) {
+      newPosts.category = category;
+    }
+    if (content) {
+      newPosts.content = content;
+    }
+    if (slug) {
+      newPosts.slug = slug;
+    }
+
+    let posts = Post.findById(req.params.id);
+    if (!posts) {
+      res.status(404).send({ message: "Posts not find" });
+    }
+    posts = await Post.findByIdAndUpdate(
+      req.params.id,
+      { $set: newPosts },
+      { new: true }
+    );
+    res.json(posts);
   } catch (error) {
     console.error(error.message);
     res.status(500).send("internal server Error");
   }
-})
+});
 
 // Category
-router.post("/category",[
-  body("category", "Enter category")
-], async (req,res)=>{
-  const errors = validationResult(req);
+router.post(
+  "/category",
+  [body("category", "Enter category")],
+  async (req, res) => {
+    const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-  const {category} = req.body;
-  const Allategory = await Category.create({
-    category
-  })
-  res.json(Allategory)
-})
-
-router.get("/getcategory", async(req,res)=>{
-  try {
-    const Getcategory = await Category.find({})
-    res.json(Getcategory)
-  } catch (error) {
-    console.log(error.message)
-    res.status(500).send("internal Server Error")
+    const { category } = req.body;
+    const Allategory = await Category.create({
+      category,
+    });
+    res.json(Allategory);
   }
-})
+);
 
-router.get("/getcategory/:id", async(req,res)=>{
+router.get("/getcategory", async (req, res) => {
   try {
-    const Getcategory = await Category.findById(req.params.id)
-    if(!Getcategory){
-      return res.status(404).json({message:"Dont find Category"})
+    const Getcategory = await Category.find({});
+    res.json(Getcategory);
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).send("internal Server Error");
+  }
+});
+
+router.get("/getcategory/:id", async (req, res) => {
+  try {
+    const Getcategory = await Category.findById(req.params.id);
+    if (!Getcategory) {
+      return res.status(404).json({ message: "Dont find Category" });
     }
-    res.json(Getcategory)
+    res.json(Getcategory);
   } catch (error) {
     console.error(error.message);
     res.status(500).send("internal server Error");
   }
-})
+});
 
-router.delete("/delcategory/:id", async(req,res)=>{
+router.delete("/delcategory/:id", async (req, res) => {
   try {
-    const Getcategory = await Category.findByIdAndDelete(req.params.id)
-    if(!Getcategory){
-      return res.status(404).json({message:"Dont find Category"})
+    const Getcategory = await Category.findByIdAndDelete(req.params.id);
+    if (!Getcategory) {
+      return res.status(404).json({ message: "Dont find Category" });
     }
     res.json({ message: "Category deleted successfully" });
   } catch (error) {
     console.error(error.message);
     res.status(500).send("internal server Error");
   }
-})
+});
 
-router.put("/editcategory/:id", async(req,res)=>{
+router.put("/editcategory/:id", async (req, res) => {
   try {
-    const {category} = req.body
-    const newCat = {}
-    if(category){
-      newCat.category = category
+    const { category } = req.body;
+    const newCat = {};
+    if (category) {
+      newCat.category = category;
     }
 
-    let cat = await Category.findById(req.params.id)
-    if(!cat){
-      res.status(404).json("Category not found")
+    let cat = await Category.findById(req.params.id);
+    if (!cat) {
+      res.status(404).json("Category not found");
     }
 
-    cat = await Category.findByIdAndUpdate(req.params.id, {$set: newCat}, {new: true});
-    res.json(cat)
+    cat = await Category.findByIdAndUpdate(
+      req.params.id,
+      { $set: newCat },
+      { new: true }
+    );
+    res.json(cat);
   } catch (error) {
     console.error(error.message);
     res.status(500).send("internal server Error");
   }
+});
+
+router.get("/categoryCount", async(req,res)=>{
+  try {
+    const categoryCount = await Category.countDocuments({})
+    res.json(categoryCount)
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).send("internal server error");
+  }
 })
-module.exports = router
+module.exports = router;
